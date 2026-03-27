@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "aes": "^0.1.0",
+    "prompt-sync": "^4.2.0"
+  }
+}
