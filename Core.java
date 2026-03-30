@@ -1,6 +1,8 @@
 import java.security.MessageDigest;
 import java.util.HashMap;
 import java.util.UUID;
+import java.time.LocalDate;
+import java.util.Scanner;
 
 public class Core {
 
@@ -50,24 +52,12 @@ public class Core {
         private HashMap<String, Usuario> usuarios = new HashMap<>();
 
         public boolean criarUsuario(String nome, String senha) {
-            if (nome == null || nome.trim().isEmpty()) {
-                System.err.println("Usuario invalido");
-                return false;
-            }
-
-            if (senha == null || senha.trim().isEmpty()) {
-                System.err.println("Senha invalida");
-                return false;
-            }
-
-            if (buscarPorNome(nome) != null) {
-                System.err.println("Usuario existente");
-                return false;
-            }
+            if (nome == null || nome.trim().isEmpty()) return false;
+            if (senha == null || senha.trim().isEmpty()) return false;
+            if (buscarPorNome(nome) != null) return false;
 
             Usuario user = new Usuario(nome, senha, 0);
             usuarios.put(user.id, user);
-
             return true;
         }
 
@@ -77,48 +67,107 @@ public class Core {
 
         public Usuario buscarPorNome(String nome) {
             for (Usuario u : usuarios.values()) {
-                if (u.getNome().equals(nome)) {
-                    return u;
-                }
+                if (u.getNome().equals(nome)) return u;
             }
             return null;
         }
 
-        public boolean login(String nome, String senha) {
-            if (nome == null || nome.trim().isEmpty()) {
-                System.err.println("Nome invalido");
-                return false;
-            }
-
-            if (senha == null || senha.trim().isEmpty()) {
-                System.err.println("Senha invalida");
-                return false;
-            }
+        public Usuario login(String nome, String senha) {
+            if (nome == null || nome.trim().isEmpty()) return null;
+            if (senha == null || senha.trim().isEmpty()) return null;
 
             Usuario user = buscarPorNome(nome);
+            if (user == null) return null;
+            if (!user.verificarSenha(senha)) return null;
 
-            if (user == null) {
-                System.out.println("Usuario nao existe");
-                return false;
+            return user;
+        }
+
+        public boolean addpatente(String id, int valor) {
+            Usuario user = usuarios.get(id);
+            if (user == null) return false;
+
+            int nova = user.patentes + valor;
+            if (nova < 0) return false;
+
+            user.patentes = nova;
+            return true;
+        }
+
+        public boolean removerUsuario(String id) {
+            return usuarios.remove(id) != null;
+        }
+    }
+
+    static class Patente {
+        String id;
+        LocalDate dataInc;
+        LocalDate dataFin;
+        String criador;
+        boolean status;
+        String descricao;
+        String nome;
+
+        private HashMap<String, Patente> patentes = new HashMap<>();
+
+        public Patente(LocalDate dataInc, LocalDate dataFin, String criador, String descricao, String nome) {
+            if (dataFin.isBefore(dataInc)) {
+                throw new IllegalArgumentException("Data final não pode ser antes da inicial");
             }
 
-            if (!user.verificarSenha(senha)) {
-                System.err.println("Senha incorreta");
-                return false;
-            }
+            this.id = UUID.randomUUID().toString();
+            this.dataInc = dataInc;
+            this.dataFin = dataFin;
+            this.criador = criador;
+            this.descricao = descricao;
+            this.nome = nome;
+            this.status = LocalDate.now().isBefore(dataFin);
+        }
 
+        public boolean cadastrar(String nome, String criador) {
+            if (nome == null || nome.trim().isEmpty()) return false;
+            if (criador == null || criador.trim().isEmpty()) return false;
+
+            Patente p = new Patente(
+                LocalDate.now(),
+                LocalDate.now().plusYears(1),
+                criador,
+                "Sem descrição",
+                nome
+            );
+
+            patentes.put(p.id, p);
             return true;
         }
     }
 
     public static void main(String[] args) {
+
         UsuarioService service = new UsuarioService();
-
         service.criarUsuario("Vinicius", "123456");
-        service.criarUsuario("Maria", "abc123");
 
-        System.out.println(service.login("Vinicius", "123456"));
-        System.out.println(service.login("Vinicius", "errada"));
-        System.out.println(service.login("Joao", "123"));
+        if (args.length > 0 && args[0].equals("api")) {
+            Scanner sc = new Scanner(System.in);
+            String input = sc.nextLine();
+
+            if (input.contains("login")) {
+                String nome = input.split("\"nome\":\"")[1].split("\"")[0];
+                String senha = input.split("\"senha\":\"")[1].split("\"")[0];
+
+                Usuario user = service.login(nome, senha);
+
+                if (user != null) {
+                    System.out.println("{\"status\":\"ok\",\"nome\":\"" + user.getNome() + "\"}");
+                } else {
+                    System.out.println("{\"status\":\"erro\"}");
+                }
+            }
+
+            sc.close();
+            return;
+        }
+
+        Usuario u = service.login("Vinicius", "123456");
+        System.out.println(u != null ? "Login OK: " + u.getNome() : "Falha no login");
     }
 }
