@@ -1,36 +1,38 @@
-const express = require('express');
-const mysql = require('mysql2');
+const express = require("express");
+const { spawn } = require("child_process");
 
 const app = express();
 app.use(express.json());
 
-const db = mysql.createConnection({
-    host: 'localhost',
-    user: 'root',
-    password: '',
-    database: 'database.sql'
-});
+app.post("/login", (req, res) => {
+  const { nome, senha } = req.body;
 
-db.connect((err) => {
-    if (err) {
-        console.error(err);
-        return;
+  const java = spawn("java", ["Core", "api"]);
+
+  const input = JSON.stringify({
+    action: "login",
+    nome,
+    senha
+  });
+
+  java.stdin.write(input + "\n");
+  java.stdin.end();
+
+  let data = "";
+
+  java.stdout.on("data", (chunk) => {
+    data += chunk;
+  });
+
+  java.on("close", () => {
+    try {
+      res.json(JSON.parse(data));
+    } catch {
+      res.status(500).json({ erro: "Erro no core" });
     }
-    console.log('Conectado ao MySQL');
+  });
 });
 
-app.get('/', (req, res) => {
-    res.send('API rodando');
-});
-
-app.get('/pessoas', (req, res) => {
-    db.query('SELECT * FROM PESSOA', (err, results) => {
-        if (err) return res.status(500).json(err);
-        res.json(results);
-    });
-});
-
-const PORT = 3000;
-app.listen(PORT, () => {
-    console.log(`Servidor rodando em http://localhost:${PORT}`);
+app.listen(3000, () => {
+  console.log("API rodando em http://localhost:3000");
 });
